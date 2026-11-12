@@ -1,0 +1,47 @@
+#!/usr/bin/env python3
+# 12 November 2026, 02:55 CET: assemble the standalone index.html (styles, scripts, embedded Adobe Clean) from Source/.
+# FR : assemble le index.html autonome (styles, scripts, Adobe Clean embarquée) depuis Source/.
+import base64
+import pathlib
+import sys
+
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+SOURCE = ROOT / "Source"
+FONT_DIR = pathlib.Path("/Users/zenray/.claude/skills/zenray-edit/designs/_shared/fonts")
+# One family name for the interface, so the installed "Adobe Clean" stays free for the Fonts gallery cards.
+UI_FACES = [("AdobeClean-Regular.woff2", "100 450"), ("AdobeClean-Medium.woff2", "451 900")]
+OUTPUT = ROOT / "index.html"
+
+
+def font_faces() -> str:
+    rules = []
+    for file_name, weight_range in UI_FACES:
+        encoded = base64.b64encode((FONT_DIR / file_name).read_bytes()).decode("ascii")
+        rules.append(
+            "@font-face{font-family:'ZR UI';font-weight:%s;font-display:block;"
+            "src:url(data:font/woff2;base64,%s) format('woff2')}" % (weight_range, encoded)
+        )
+    return "\n".join(rules)
+
+
+def main() -> int:
+    page = (SOURCE / "index.src.html").read_text(encoding="utf-8")
+    parts = {
+        "/*@@FONTFACES@@*/": font_faces(),
+        "/*@@STYLE@@*/": (SOURCE / "style.css").read_text(encoding="utf-8"),
+        "/*@@AUDIO@@*/": (SOURCE / "audio.js").read_text(encoding="utf-8"),
+        "/*@@FONTS@@*/": (SOURCE / "fonts.js").read_text(encoding="utf-8"),
+    }
+    for marker, content in parts.items():
+        if marker not in page:
+            raise SystemExit(f"Missing marker in index.src.html: {marker}")
+        page = page.replace(marker, content)
+    if "—" in page or "–" in page:
+        raise SystemExit("Long dash found in the page, replace it before building.")
+    OUTPUT.write_text(page, encoding="utf-8")
+    print(f"{OUTPUT} {OUTPUT.stat().st_size} bytes")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

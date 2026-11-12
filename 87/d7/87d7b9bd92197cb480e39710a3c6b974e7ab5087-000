@@ -1,0 +1,230 @@
+/* 12 November 2026, 02:20 CET: demo audio engine. Every sound is synthesized in the page so the three audio mockups are playable without any file. */
+/* FR : moteur audio de démonstration. Chaque son est synthétisé dans la page, les trois maquettes audio se jouent sans aucun fichier. */
+const SR = PARAMS.sampleRate, TAU = Math.PI * 2;
+const KINDS = { sfx: 'SFX', ui: 'UI', amb: 'Ambiance', bgm: 'BGM', vox: 'Voix' };
+
+function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const buf = d => new Float32Array(Math.max(1, Math.round(d * SR)));
+function noise(n, R, brown) { const x = new Float32Array(n); let b = 0; for (let i = 0; i < n; i++) { const w = R() * 2 - 1; if (brown) { b = (b + 0.02 * w) / 1.02; x[i] = b * 3.5; } else x[i] = w; } return x; }
+function svf(x, fc, q, mode) { let lo = 0, bd = 0; const y = new Float32Array(x.length), n = x.length; for (let i = 0; i < n; i++) { const f = 2 * Math.sin(Math.PI * Math.min(fc(i / n), SR / 6.5) / SR); lo += f * bd; const hi = x[i] - lo - q * bd; bd += f * hi; y[i] = mode === 'lp' ? lo : mode === 'hp' ? hi : bd; } return y; }
+function tone(x, t0, f, dur, amp, dec, h2 = 0) { const i0 = Math.round(t0 * SR), n = Math.min(x.length - i0, Math.round(dur * SR)); for (let i = 0; i < n; i++) { const t = i / SR, e = Math.exp(-t * dec) * Math.min(1, i / 40); x[i0 + i] += amp * e * (Math.sin(TAU * f * t) + h2 * Math.sin(TAU * 2 * f * t)); } }
+function burst(x, t0, dur, amp, dec, R, fc, mode = 'lp') { const n = Math.round(dur * SR), nz = svf(noise(n, R), () => fc, 0.7, mode), i0 = Math.round(t0 * SR); for (let i = 0; i < n && i0 + i < x.length; i++) x[i0 + i] += amp * nz[i] * Math.exp(-i / SR * dec); }
+const mix = (a, b, g = 1) => { for (let i = 0; i < a.length && i < b.length; i++) a[i] += b[i] * g; return a; };
+
+const RECIPES = {
+  blip(p) { const x = buf(p.d); let ph = 0; for (let i = 0; i < x.length; i++) { const u = i / x.length; ph += TAU * p.f0 * Math.pow(p.f1 / p.f0, u) / SR; const s = Math.sin(ph); x[i] = (p.sq ? Math.sign(s) * 0.5 : s) * Math.exp(-u * (p.k || 4)) * Math.min(1, i / 60); } return x; },
+  coin(p) { const x = buf(p.d); let ph = 0; for (let i = 0; i < x.length; i++) { const t = i / SR; ph += TAU * (t < 0.07 ? p.f : p.f * 1.5) / SR; const s = Math.sin(ph); x[i] = (Math.sign(s) * 0.35 + s * 0.4) * Math.exp(-Math.max(0, t - 0.07) * 7); } return x; },
+  chime(p) { const x = buf(p.d); (p.part || [1, 2.76, 5.4, 8.93]).forEach((m, j) => tone(x, 0, p.f * m, p.d, 1 / (j + 1), (p.dec || 2.2) * (1 + j * 0.7))); return x; },
+  arp(p) { const x = buf(p.d); p.notes.forEach((n, j) => tone(x, j * p.step, p.f * Math.pow(2, n / 12), 0.6, 0.6, 6, 0.3)); return x; },
+  whoosh(p, R) { const x = buf(p.d), y = svf(noise(x.length, R), u => p.f0 + (p.f1 - p.f0) * Math.sin(Math.PI * u), 0.35, 'bp'); for (let i = 0; i < x.length; i++) x[i] = y[i] * Math.pow(Math.sin(Math.PI * i / x.length), 2); return x; },
+  impact(p, R) { const x = buf(p.d); let ph = 0; for (let i = 0; i < x.length; i++) { const t = i / SR; ph += TAU * (p.f * Math.exp(-t * 6) + 34) / SR; x[i] = Math.sin(ph) * Math.exp(-t * (p.k || 5)); } burst(x, 0, 0.25, 0.8, 18, R, p.fc || 1800); return x; },
+  laser(p) { const x = buf(p.d); let ph = 0; for (let i = 0; i < x.length; i++) { const u = i / x.length; ph += p.f0 * Math.pow(p.f1 / p.f0, u) / SR; x[i] = (2 * (ph % 1) - 1) * Math.exp(-u * 3); } return x; },
+  riser(p, R) { const x = buf(p.d), y = svf(noise(x.length, R), u => 300 + 5200 * u * u, 0.5, 'bp'); let ph = 0; for (let i = 0; i < x.length; i++) { const u = i / x.length; ph += TAU * (p.f * (1 + 3 * u * u)) / SR; x[i] = y[i] * u * u + Math.sin(ph) * 0.35 * u; } return x; },
+  step(p, R) { const x = buf(p.d); burst(x, 0, p.d, 1, p.dec || 30, R, p.fc || 500); tone(x, 0, 92, 0.12, 0.6, 35); return x; },
+  latch(p, R) { const x = buf(p.d); [[0, 2400], [0.12, 3100]].forEach(([t, f]) => { burst(x, t, 0.02, 0.8, 200, R, 5000, 'hp'); tone(x, t, f, 0.12, 0.5, 40); }); return x; },
+  creak(p, R) { const x = buf(p.d); let ph = 0, j = 0; for (let i = 0; i < x.length; i++) { const t = i / SR; if (i % 400 === 0) j = R() - 0.5; const f = p.f * (1 + 0.25 * Math.sin(TAU * 3 * t) + 0.12 * j); ph += f / SR; x[i] = (2 * (ph % 1) - 1) * (0.55 + 0.45 * Math.sign(Math.sin(TAU * f / 5 * t))) * Math.sqrt(Math.sin(Math.PI * i / x.length)); } return svf(x, () => 950, 0.3, 'bp'); },
+  buzz(p) { const x = buf(p.d); for (let i = 0; i < x.length; i++) { const t = i / SR; x[i] = Math.sign(Math.sin(TAU * 150 * t)) * 0.5 + Math.sign(Math.sin(TAU * 158 * t)) * 0.4; } return x; },
+  click(p, R) { const x = buf(p.d); burst(x, 0, p.d, 1, 300, R, 3000, 'hp'); tone(x, 0, 1800, p.d, 0.5, 120); return x; },
+  amb(p, R) { const x = mix(buf(p.d), svf(noise(buf(p.d).length, R, true), () => 420, 0.8, 'lp'), 0.9); for (let t = 0.15; t < p.d - 0.4; t += 0.75 + R() * 0.5) for (let k = 0; k < 5; k++) tone(x, t + k * 0.055, 4100 + R() * 300, 0.03, 0.1, 60); for (let t = 1; t < p.d - 1; t += 2.3) tone(x, t, 170, 0.22, 0.35, 9, 0.5); return x; },
+  wind(p, R) { const y = svf(noise(buf(p.d).length, R), u => 560 + 260 * Math.sin(TAU * u * 2) + 150 * Math.sin(TAU * u * 3), 0.6, 'bp'); for (let i = 0; i < y.length; i++) y[i] *= 0.6 + 0.4 * Math.sin(TAU * i / y.length); return y; },
+  rain(p, R) { const x = svf(noise(buf(p.d).length, R), () => 2600, 0.9, 'hp'); for (let i = 0; i < x.length; i++) x[i] *= 0.4; for (let k = 0; k < p.d * 26; k++) burst(x, R() * (p.d - 0.05), 0.012, 0.5 + R() * 0.5, 240, R, 3600, 'bp'); return x; },
+  drone(p) { const x = buf(p.d); for (let i = 0; i < x.length; i++) { const t = i / SR; x[i] = [55, 55.4, 82.5, 110.3].reduce((a, f) => a + (2 * ((f * t) % 1) - 1), 0) * (0.7 + 0.3 * Math.sin(TAU * i / x.length)); } return svf(x, u => 300 + 200 * Math.sin(TAU * u), 0.5, 'lp'); },
+  fire(p, R) { const x = mix(buf(p.d), svf(noise(buf(p.d).length, R, true), () => 700, 0.8, 'lp'), 0.7); for (let k = 0; k < p.d * 9; k++) burst(x, R() * (p.d - 0.05), 0.02, R(), 160, R, 1700, 'hp'); return x; },
+  vox(p, R) { const x = buf(p.d); let ph = 0; for (let i = 0; i < x.length; i++) { const u = i / x.length; ph += p.f * (1 - 0.18 * u) / SR; x[i] = (2 * (ph % 1) - 1) + (R() - 0.5) * 0.25; } const a = svf(x, () => 720, 0.18, 'bp'), b = svf(x, () => 1150, 0.18, 'bp'); for (let i = 0; i < x.length; i++) { const t = i / SR; x[i] = (a[i] + b[i] * 0.7) * Math.min(1, t / 0.02) * Math.exp(-t * (p.k || 7)); } return x; },
+  breath(p, R) { const y = svf(noise(buf(p.d).length, R), () => 1250, 0.5, 'bp'); for (let i = 0; i < y.length; i++) y[i] *= Math.pow(Math.sin(Math.PI * i / y.length), 2); return y; },
+  bgm(p, R) { const beat = 60 / p.bpm, d = 8 * beat, x = buf(d), sc = p.minor ? [0, 2, 3, 5, 7, 8, 10] : [0, 2, 4, 5, 7, 9, 11]; const semi = dg => sc[((dg % 7) + 7) % 7] + 12 * Math.floor(dg / 7), hz = s => p.f * Math.pow(2, s / 12);
+    (p.prog || [0, 5, 3, 4]).forEach((root, c) => { const t0 = c * 2 * beat; tone(x, t0, hz(semi(root) - 12), 2 * beat, 0.55, 2.2, 0.2); [0, 2, 4].forEach(k => tone(x, t0, hz(semi(root + k)), 2 * beat, 0.07, 0.6)); (p.pat || [0, 2, 4, 2]).forEach((k, j) => tone(x, t0 + j * beat / 2, hz(semi(root + k) + 12), beat, 0.34, 6, 0.25)); if (p.hat) for (let j = 0; j < 4; j++) burst(x, t0 + j * beat / 2 + beat / 4, 0.03, 0.16, 120, R, 5000, 'hp'); if (p.kick) for (let j = 0; j < 2; j++) tone(x, t0 + j * beat, 58, 0.16, 0.8, 22); });
+    return x; },
+};
+
+/* name, kind, recipe, params, tags, project, extra */
+const SOUNDS = [
+  ['Lens Flare', 'sfx', 'chime', { f: 880, d: 2.2, dec: 1.6 }, ['logo', 'brillant'], 'Motion'],
+  ['Vers l’autre dimension', 'sfx', 'riser', { f: 180, d: 3 }, ['transition', 'montée'], 'Motion'],
+  ['Note du logo', 'sfx', 'chime', { f: 1318, d: 1.0, part: [1, 2, 3.01], dec: 3.5 }, ['logo', 'note'], 'Motion'],
+  ['Coffre, loquet', 'sfx', 'latch', { d: 0.36 }, ['métal', 'coffre'], 'ZenRayShards'],
+  ['Coffre, grincement', 'sfx', 'creak', { f: 118, d: 1.4 }, ['bois', 'coffre'], 'ZenRayShards'],
+  ['Coffre, choc du couvercle', 'sfx', 'impact', { f: 140, d: 0.9 }, ['bois', 'choc'], 'ZenRayShards'],
+  ['Épée, fouetté', 'sfx', 'whoosh', { f0: 500, f1: 3400, d: 0.42 }, ['arme', 'air'], 'ZenRayShards'],
+  ['Esquive', 'sfx', 'whoosh', { f0: 900, f1: 2200, d: 0.24 }, ['mouvement', 'air'], 'ZenRayShards'],
+  ['Impact lourd', 'sfx', 'impact', { f: 95, d: 1.3, k: 3.4, fc: 900 }, ['choc', 'grave'], 'ZenRayShards'],
+  ['Éclat de cristal', 'sfx', 'chime', { f: 1760, d: 1.6, part: [1, 1.52, 2.41, 3.9, 5.2], dec: 3 }, ['cristal', 'éclat'], 'ZenRayShards'],
+  ['Charge d’énergie', 'sfx', 'riser', { f: 240, d: 1.5 }, ['magie', 'montée'], 'ZenRayShards'],
+  ['Tir court', 'sfx', 'laser', { f0: 1900, f1: 190, d: 0.3 }, ['arme', 'synthé'], 'ZenRayShards'],
+  ['Pas sur bois', 'sfx', 'step', { d: 0.26, fc: 420 }, ['pas', 'bois'], 'Louisiana Bayou'],
+  ['Pas sur gravier', 'sfx', 'step', { d: 0.34, fc: 2200, dec: 16 }, ['pas', 'gravier'], 'Louisiana Bayou'],
+  ['Porte de l’église', 'sfx', 'creak', { f: 86, d: 2.1 }, ['bois', 'porte'], 'Louisiana Bayou'],
+  ['Curseur', 'ui', 'blip', { f0: 900, f1: 1150, d: 0.07, k: 3 }, ['menu', 'navigation'], 'UI'],
+  ['Valider', 'ui', 'coin', { f: 988, d: 0.38 }, ['menu', 'positif'], 'UI'],
+  ['Annuler', 'ui', 'blip', { f0: 520, f1: 280, d: 0.16 }, ['menu', 'retour'], 'UI'],
+  ['Ouverture de menu', 'ui', 'blip', { f0: 300, f1: 950, d: 0.22, k: 2 }, ['menu', 'ouverture'], 'UI'],
+  ['Erreur', 'ui', 'buzz', { d: 0.24 }, ['menu', 'négatif'], 'UI'],
+  ['Objet obtenu', 'ui', 'arp', { f: 660, d: 0.9, step: 0.08, notes: [0, 4, 7, 12] }, ['récompense', 'positif'], 'UI'],
+  ['Sauvegarde', 'ui', 'coin', { f: 523, d: 0.55 }, ['système', 'positif'], 'UI'],
+  ['Onglet', 'ui', 'click', { d: 0.04 }, ['menu', 'clic'], 'UI'],
+  ['Victoire, jingle', 'ui', 'arp', { f: 523, d: 2.4, step: 0.17, notes: [0, 4, 7, 12, 7, 12, 16, 19] }, ['récompense', 'jingle'], 'ZenRayShards', { bpm: 120 }],
+  ['Bayou, nuit', 'amb', 'amb', { d: 6 }, ['extérieur', 'insectes'], 'Louisiana Bayou'],
+  ['Vent sur le toit', 'amb', 'wind', { d: 6 }, ['extérieur', 'vent'], 'Louisiana Bayou'],
+  ['Pluie fine', 'amb', 'rain', { d: 6 }, ['extérieur', 'pluie'], 'Louisiana Bayou'],
+  ['Caverne, résonance', 'amb', 'drone', { d: 6 }, ['intérieur', 'grave'], 'ZenRayShards'],
+  ['Feu de camp', 'amb', 'fire', { d: 6 }, ['extérieur', 'feu'], 'ZenRayShards'],
+  ['Thème des éclats', 'bgm', 'bgm', { bpm: 92, f: 293.66, minor: 1, hat: 1 }, ['thème', 'mélancolie'], 'ZenRayShards', { key: 'Ré mineur' }],
+  ['Menu, calme', 'bgm', 'bgm', { bpm: 72, f: 220, minor: 1, pat: [0, 4, 2, 4], prog: [0, 3, 5, 4] }, ['menu', 'calme'], 'ZenRayShards', { key: 'La mineur' }],
+  ['Exploration du bayou', 'bgm', 'bgm', { bpm: 84, f: 329.63, minor: 1, hat: 1, prog: [0, 2, 5, 4], pat: [4, 2, 0, 2] }, ['exploration', 'nature'], 'Louisiana Bayou', { key: 'Mi mineur' }],
+  ['Tension, boss', 'bgm', 'bgm', { bpm: 132, f: 261.63, minor: 1, hat: 1, kick: 1, prog: [0, 0, 5, 6], pat: [0, 4, 0, 2] }, ['combat', 'tension'], 'ZenRayShards', { key: 'Do mineur' }],
+  ['Carte de fin', 'bgm', 'bgm', { bpm: 60, f: 349.23, pat: [0, 2, 4, 7], prog: [0, 3, 4, 0] }, ['fin', 'lumière'], 'Motion', { key: 'Fa majeur' }],
+  ['Effort, attaque', 'vox', 'vox', { f: 150, d: 0.3 }, ['héros', 'effort'], 'ZenRayShards'],
+  ['Effort, saut', 'vox', 'vox', { f: 205, d: 0.22, k: 9 }, ['héros', 'effort'], 'ZenRayShards'],
+  ['Dégât reçu', 'vox', 'vox', { f: 122, d: 0.36, k: 5 }, ['héros', 'douleur'], 'ZenRayShards'],
+  ['Souffle', 'vox', 'breath', { d: 0.8 }, ['héros', 'respiration'], 'ZenRayShards'],
+].map((r, i) => { const [name, k, rec, p, tags, project, ex = {}] = r; const loop = k === 'amb' || k === 'bgm'; const id = name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); return { id, i, name, k, rec, p, tags, project, loop, bpm: ex.bpm || (k === 'bgm' ? p.bpm : 0), key: ex.key || '', path: `Audio/${KINDS[k]}/${project.replace(/ /g, '')}/${id}.wav` }; });
+const byId = id => SOUNDS.find(s => s.id === id);
+
+const CACHE = new Map();
+function data(s) {
+  let c = CACHE.get(s.id); if (c) return c;
+  const x = RECIPES[s.rec](s.p, rng(1000 + s.i * 7919)), n = x.length;
+  let pk = 0; for (let i = 0; i < n; i++) pk = Math.max(pk, Math.abs(x[i]));
+  const g = (s.k === 'amb' ? 0.45 : s.k === 'bgm' ? 0.6 : 0.8) / (pk || 1), fade = Math.min(n >> 1, Math.round(0.004 * SR));
+  let sq = 0, zc = 0; for (let i = 0; i < n; i++) { x[i] *= g; if (i < fade) x[i] *= i / fade; if (i >= n - fade) x[i] *= (n - i) / fade; sq += x[i] * x[i]; if (i && (x[i] < 0) !== (x[i - 1] < 0)) zc++; }
+  const B = PARAMS.waveBins, peaks = new Float32Array(B); for (let i = 0; i < n; i++) { const b = Math.min(B - 1, Math.floor(i / n * B)); peaks[b] = Math.max(peaks[b], Math.abs(x[i])); }
+  const mp = Math.max(...peaks) || 1; for (let i = 0; i < B; i++) peaks[i] /= mp;
+  const dur = n / SR, hz = zc / 2 / dur, bright = Math.max(0, Math.min(1, Math.log2(Math.max(60, hz) / 60) / Math.log2(7000 / 60))), lufs = 10 * Math.log10(sq / n + 1e-9) - 0.7;
+  c = { x, peaks, dur, bright, lufs }; CACHE.set(s.id, c); return c;
+}
+const fr = (v, d = 2) => v.toFixed(d).replace('.', ',');
+const fmtDur = d => d < 10 ? fr(d) + ' s' : Math.floor(d / 60) + ':' + String(Math.round(d % 60)).padStart(2, '0');
+const metaLine = s => [s.bpm ? s.bpm + ' BPM' : '', s.key, ...s.tags].filter(Boolean).join(' · ');
+const match = (s, q) => !q || (s.name + ' ' + s.tags.join(' ') + ' ' + s.project + ' ' + KINDS[s.k]).toLowerCase().includes(q.toLowerCase());
+
+/* Player: one "solo" voice (wall, map), free polyphony (pads) and one looping bed (BGM under the pads). */
+const AU = {
+  ctx: null, master: null, bufs: new Map(), cur: null, bed: null, poly: new Set(),
+  on() { if (!this.ctx) { const C = window.AudioContext || window.webkitAudioContext; this.ctx = new C(); this.master = this.ctx.createGain(); this.master.gain.value = 0.9; this.master.connect(this.ctx.destination); } if (this.ctx.state === 'suspended') this.ctx.resume(); return this.ctx; },
+  ready() { return !!this.ctx && this.ctx.state === 'running'; },
+  buffer(s) { let b = this.bufs.get(s.id); if (!b) { const d = data(s).x; b = this.ctx.createBuffer(1, d.length, SR); b.copyToChannel(d, 0); this.bufs.set(s.id, b); } return b; },
+  voice(s, o = {}) { const src = this.ctx.createBufferSource(), g = this.ctx.createGain(); src.buffer = this.buffer(s); src.loop = o.loop ?? s.loop; g.gain.value = o.gain ?? 1; src.connect(g).connect(this.master); const from = Math.min(o.from || 0, src.buffer.duration - 0.01); src.start(0, from); return { id: s.id, src, g, t0: this.ctx.currentTime - from, dur: src.buffer.duration, loop: src.loop, tag: o.tag }; },
+  play(s, o = {}) { if (!this.ready()) return null; if (o.poly) { const h = this.voice(s, { ...o, loop: false }); this.poly.add(h); h.src.onended = () => this.poly.delete(h); return h; } this.stop(); const h = this.cur = this.voice(s, o); h.src.onended = () => { if (this.cur === h) this.cur = null; }; return h; },
+  stop() { const h = this.cur; if (h) { h.src.onended = null; try { h.src.stop(); } catch (e) {} this.cur = null; } },
+  bedPlay(s, gain) { if (!this.ready()) return null; this.bedStop(); return this.bed = this.voice(s, { loop: true, gain }); },
+  bedStop() { if (this.bed) { try { this.bed.src.stop(); } catch (e) {} this.bed = null; } },
+  all() { this.stop(); this.bedStop(); this.poly.forEach(h => { try { h.src.stop(); } catch (e) {} }); this.poly.clear(); },
+  prog(h) { if (!h) return -1; const t = this.ctx.currentTime - h.t0; return h.loop ? (t % h.dur) / h.dur : Math.min(1, t / h.dur); },
+};
+['pointerdown', 'keydown'].forEach(ev => window.addEventListener(ev, () => AU.on(), { capture: true }));
+
+const kcol = k => getComputedStyle(document.documentElement).getPropertyValue('--k-' + k).trim();
+function prep(c) { const r = c.getBoundingClientRect(); if (!r.width) return null; const dpr = Math.min(2, window.devicePixelRatio || 1); c.width = Math.round(r.width * dpr); c.height = Math.round(r.height * dpr); const g = c.getContext('2d'); g.clearRect(0, 0, c.width, c.height); return { g, W: c.width, H: c.height, dpr }; }
+function drawWave(c, s, prog = -1) {
+  const o = prep(c); if (!o) return; const { g, W, H, dpr } = o, pk = data(s).peaks, bw = 3 * dpr, gap = 2 * dpr, n = Math.max(8, Math.floor(W / (bw + gap)));
+  g.fillStyle = kcol(s.k);
+  for (let i = 0; i < n; i++) { const a = Math.floor(i / n * pk.length), b = Math.max(a + 1, Math.floor((i + 1) / n * pk.length)); let m = 0; for (let j = a; j < b; j++) m = Math.max(m, pk[j]); const h = Math.max(2 * dpr, m * H * 0.94); g.globalAlpha = prog < 0 ? 0.85 : (i / n <= prog ? 1 : 0.3); g.beginPath(); g.roundRect(i * (bw + gap) + gap / 2, (H - h) / 2, bw, h, bw / 2); g.fill(); }
+}
+function drawSigil(c, s) {
+  const o = prep(c); if (!o) return; const { g, W, H, dpr } = o, pk = data(s).peaks, n = 56, r0 = Math.min(W, H) * 0.17, r1 = Math.min(W, H) * 0.48;
+  g.strokeStyle = kcol(s.k); g.lineCap = 'round'; g.lineWidth = 2.2 * dpr;
+  for (let i = 0; i < n; i++) { const a = -Math.PI / 2 + TAU * i / n, m = pk[Math.floor(i / n * pk.length)], r = r0 + Math.max(0.04, m) * (r1 - r0); g.globalAlpha = 0.35 + 0.65 * m; g.beginPath(); g.moveTo(W / 2 + Math.cos(a) * r0, H / 2 + Math.sin(a) * r0); g.lineTo(W / 2 + Math.cos(a) * r, H / 2 + Math.sin(a) * r); g.stroke(); }
+}
+function needSound() { if (!AU.ready()) toast('Clique une fois dans la page pour activer le son'); }
+const kindChips = (counts, cur, extra = '') => `<button class="chip ${cur === 'all' ? 'on' : ''}" data-k="all">Tout <b>${SOUNDS.length}</b></button>` + Object.keys(KINDS).map(k => `<button class="chip k-${k} ${cur === k ? 'on' : ''}" data-k="${k}"><i class="dotk"></i>${KINDS[k]} <b>${counts[k] || 0}</b></button>`).join('') + extra;
+const countK = () => SOUNDS.reduce((a, s) => (a[s.k] = (a[s.k] || 0) + 1, a), {});
+
+/* ───────── AUDIO A: Mur d'ondes ───────── */
+function audioWall(st) {
+  const S = { q: '', k: 'all', sel: 'lens-flare', hover: PARAMS.hoverListen, fav: new Set(['lens-flare', 'theme-des-eclats', 'valider']), byHover: false };
+  st.innerHTML = `<div class="tb"><h2>Audio</h2><span class="count" data-count></span><input class="search" placeholder="Chercher un son, un tag, un projet"><div class="chips" data-chips></div><span class="sp"></span>
+    <label class="mini">Taille <input type="range" min="150" max="330" value="${PARAMS.tile}" data-size></label><label class="sw"><input type="checkbox" ${S.hover ? 'checked' : ''} data-hover> Écoute au survol</label></div>
+    <div class="wall" data-wall style="--tile:${PARAMS.tile}px"></div><div class="dock" data-dock></div>`;
+  const wall = $('[data-wall]', st), dock = $('[data-dock]', st), chips = $('[data-chips]', st);
+  const ORDER = SOUNDS.map((s, i) => SOUNDS[(i * PARAMS.wallStride) % SOUNDS.length]);
+  const list = () => ORDER.filter(s => (S.k === 'all' || (S.k === 'fav' ? S.fav.has(s.id) : s.k === S.k)) && match(s, S.q));
+  const tile = id => $(`.tile[data-id="${id}"]`, wall);
+  function paintChips() { chips.innerHTML = kindChips(countK(), S.k, `<button class="chip ${S.k === 'fav' ? 'on' : ''}" data-k="fav">★ Favoris <b>${S.fav.size}</b></button>`); }
+  function paint() {
+    const L = list(); $('[data-count]', st).textContent = `${L.length} sons · ${fmtDur(L.reduce((a, s) => a + data(s).dur, 0))} de matière`;
+    wall.innerHTML = L.map(s => `<div class="tile k-${s.k} ${s.loop ? 'wide' : ''} ${s.id === S.sel ? 'sel' : ''}" data-id="${s.id}" tabindex="0"><span class="tl"><i class="dotk"></i>${KINDS[s.k]}${s.loop ? ' · boucle' : ''}</span><span class="tr">${fmtDur(data(s).dur)}</span><canvas></canvas><div class="nm">${s.name}</div><div class="mt">${metaLine(s)}</div><button class="fav ${S.fav.has(s.id) ? 'on' : ''}" title="Favori (F)">★</button></div>`).join('') || '<div class="empty">Aucun son ne correspond. Efface la recherche ou change de famille.</div>';
+    $$('.tile', wall).forEach(t => drawWave($('canvas', t), byId(t.dataset.id)));
+  }
+  function paintDock() {
+    const s = byId(S.sel), d = data(s); dock.className = 'dock k-' + s.k;
+    dock.innerHTML = `<button class="playbtn" data-play title="Lire ou arrêter (Espace)">▶</button><div style="min-width:0"><div class="ti">${s.name}</div><div class="pa mono">${s.path}</div><div class="facts"><span class="fact"><b>${fmtDur(d.dur)}</b></span>${s.bpm ? `<span class="fact"><b>${s.bpm}</b> BPM</span>` : ''}${s.key ? `<span class="fact"><b>${s.key}</b></span>` : ''}<span class="fact"><b>${fr(d.lufs, 1)}</b> LUFS</span><span class="fact">WAV 48 kHz, 24 bits</span><span class="fact">${s.project}</span></div></div><canvas data-big></canvas>
+      <div class="acts"><button class="btn" data-copy="${s.path}">Copier le chemin</button><button class="btn" data-say="Envoyé vers la piste Sons de Motion">Vers Motion</button><button class="btn" data-say="Copié dans Content/Audio du projet Unreal">Vers Unreal</button><button class="btn" data-say="Sons proches affichés">Sons proches</button></div>`;
+    drawWave($('[data-big]', dock), s);
+  }
+  function select(id, from = 0, play = true) { const p = tile(S.sel); if (p) p.classList.remove('sel'); S.sel = id; const t = tile(id); if (t) { t.classList.add('sel'); t.scrollIntoView({ block: 'nearest' }); } paintDock(); if (play) { needSound(); AU.play(byId(id), { from: from * data(byId(id)).dur }); S.byHover = false; } }
+  wall.addEventListener('click', e => { const t = e.target.closest('.tile'); if (!t) return; if (e.target.closest('.fav')) { const id = t.dataset.id; S.fav.has(id) ? S.fav.delete(id) : S.fav.add(id); e.target.classList.toggle('on'); paintChips(); return; } const c = $('canvas', t), r = c.getBoundingClientRect(), from = e.target === c ? (e.clientX - r.left) / r.width : 0; AU.on(); select(t.dataset.id, from); });
+  wall.addEventListener('mouseover', e => { const t = e.target.closest('.tile'); if (!t || t.contains(e.relatedTarget) || !S.hover) return; if (!AU.ready()) return needSound(); AU.play(byId(t.dataset.id)); S.byHover = true; });
+  wall.addEventListener('mouseout', e => { const t = e.target.closest('.tile'); if (!t || t.contains(e.relatedTarget)) return; if (S.byHover && AU.cur && AU.cur.id === t.dataset.id) AU.stop(); });
+  dock.addEventListener('click', e => { if (e.target.closest('[data-play]')) { AU.on(); AU.cur && AU.cur.id === S.sel ? AU.stop() : select(S.sel); } const c = e.target.closest('[data-big]'); if (c) { const r = c.getBoundingClientRect(); AU.on(); select(S.sel, (e.clientX - r.left) / r.width); } });
+  chips.addEventListener('click', e => { const b = e.target.closest('[data-k]'); if (!b) return; S.k = b.dataset.k; paintChips(); paint(); });
+  $('.search', st).addEventListener('input', e => { S.q = e.target.value; paint(); });
+  $('[data-size]', st).addEventListener('input', e => { wall.style.setProperty('--tile', e.target.value + 'px'); $$('.tile', wall).forEach(t => drawWave($('canvas', t), byId(t.dataset.id))); });
+  $('[data-hover]', st).addEventListener('change', e => { S.hover = e.target.checked; });
+  onWin('keydown', e => { if (e.target.matches('input,select,textarea')) return; const L = list(), i = L.findIndex(s => s.id === S.sel); const cols = Math.max(1, Math.round(wall.clientWidth / (parseFloat(getComputedStyle(wall).getPropertyValue('--tile')) + 14))); const mv = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: cols, ArrowUp: -cols }[e.key];
+    if (mv) { e.preventDefault(); const n = L[Math.max(0, Math.min(L.length - 1, i + mv))]; if (n) select(n.id); } else if (e.code === 'Space') { e.preventDefault(); AU.cur && AU.cur.id === S.sel ? AU.stop() : select(S.sel); } else if (e.key.toLowerCase() === 'f') { const t = tile(S.sel); if (t) $('.fav', t).click(); } });
+  let last = null;
+  TICK = () => { const h = AU.cur, id = h ? h.id : null; if (last && last !== id) { const t = tile(last); if (t) { t.classList.remove('playing'); drawWave($('canvas', t), byId(last)); } if (last === S.sel) drawWave($('[data-big]', dock), byId(last)); } if (h) { const p = AU.prog(h), t = tile(id); if (t) { t.classList.add('playing'); drawWave($('canvas', t), byId(id), p); } if (id === S.sel) drawWave($('[data-big]', dock), byId(id), p); } $('[data-play]', dock).textContent = h && id === S.sel ? '■' : '▶'; last = id; };
+  paintChips(); paint(); paintDock();
+}
+
+/* ───────── AUDIO B: Pads ───────── */
+const PAD_CODES = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'KeyQ', 'KeyW', 'KeyE', 'KeyR', 'KeyT', 'KeyY', 'KeyA', 'KeyS', 'KeyD', 'KeyF', 'KeyG', 'KeyH', 'KeyZ', 'KeyX', 'KeyC', 'KeyV', 'KeyB', 'KeyN'];
+function audioPads(st) {
+  const banks = ['Tout', 'ZenRayShards', 'UI', 'Motion', 'Louisiana Bayou'], S = { bank: PARAMS.padBank, seq: [], vol: 0.55 };
+  let labels = PAD_CODES.map(c => c.replace('Digit', '').replace('Key', ''));
+  const beds = SOUNDS.filter(s => s.loop);
+  st.innerHTML = `<div class="padwrap"><div class="padmain"><div class="tb"><h2>Audio</h2><div class="chips" data-banks></div><span class="sp"></span><span class="hint">Joue au clavier, les sons se superposent</span></div>
+    <div class="pads" data-pads></div><div class="seq" data-seq></div></div>
+    <div class="beds"><h3>Lit sonore</h3><p>Lance une musique ou une ambiance, puis joue les effets par-dessus pour les juger en situation.</p>${beds.map(s => `<div class="bed k-${s.k}" data-id="${s.id}"><button class="pb">▶</button><div style="min-width:0"><div class="bn">${s.name}</div><div class="bm">${KINDS[s.k]}${s.bpm ? ' · ' + s.bpm + ' BPM' : ''}${s.key ? ' · ' + s.key : ''}</div><canvas></canvas></div><input type="range" min="0" max="1" step="0.01" value="${S.vol}" title="Niveau du lit"></div>`).join('')}</div></div>`;
+  const padsEl = $('[data-pads]', st), seqEl = $('[data-seq]', st), bk = $('[data-banks]', st);
+  const pads = () => SOUNDS.filter(s => !s.loop && (S.bank === 'Tout' || s.project === S.bank)).slice(0, PAD_CODES.length);
+  function paint() {
+    bk.innerHTML = banks.map(b => `<button class="chip ${b === S.bank ? 'on' : ''}" data-b="${b}">${b}</button>`).join('');
+    padsEl.innerHTML = pads().map((s, i) => `<button class="pad k-${s.k}" data-id="${s.id}" title="${s.name} · ${metaLine(s)}"><span class="kbd">${labels[i]}</span><span class="pd">${fmtDur(data(s).dur)}</span><canvas></canvas><span class="pn">${s.name}</span></button>`).join('');
+    $$('.pad', padsEl).forEach(p => drawSigil($('canvas', p), byId(p.dataset.id)));
+  }
+  function paintSeq(now = -1) { seqEl.innerHTML = `<span class="lab">Séquence</span>` + (S.seq.length ? S.seq.map((h, i) => `<span class="hitc k-${byId(h.id).k} ${i === now ? 'now' : ''}"><i class="dotk"></i>${byId(h.id).name}<i>${i ? '+' + fr((h.t - S.seq[i - 1].t) / 1000) + ' s' : '0'}</i></span>`).join('') + `<span class="sp"></span><button class="btn" data-replay>Rejouer</button><button class="btn" data-say="Séquence envoyée vers la piste Sons de Motion">Vers Motion</button><button class="btn" data-clear>Effacer</button>` : `<span class="hint">Chaque pad joué s’inscrit ici avec son écart de temps, pour rejouer ou exporter l’enchaînement.</span>`); seqEl.scrollLeft = 1e6; }
+  function flash(id) { const p = $(`.pad[data-id="${id}"]`, padsEl); if (p) { p.classList.remove('hit'); void p.offsetWidth; p.classList.add('hit'); } }
+  function hit(id, rec = true) { AU.on(); if (!AU.ready()) return needSound(); AU.play(byId(id), { poly: true }); flash(id); if (rec) { S.seq.push({ id, t: performance.now() }); if (S.seq.length > 12) S.seq.shift(); paintSeq(); } }
+  padsEl.addEventListener('pointerdown', e => { const p = e.target.closest('.pad'); if (p) { AU.on(); setTimeout(() => hit(p.dataset.id), 0); } });
+  bk.addEventListener('click', e => { const b = e.target.closest('[data-b]'); if (b) { S.bank = b.dataset.b; paint(); } });
+  seqEl.addEventListener('click', e => { if (e.target.closest('[data-clear]')) { S.seq = []; paintSeq(); } if (e.target.closest('[data-replay]') && S.seq.length) { const t0 = S.seq[0].t; S.seq.forEach((h, i) => timer(() => { hit(h.id, false); paintSeq(i); }, h.t - t0)); } });
+  $('.beds', st).addEventListener('click', e => { const b = e.target.closest('.bed'); if (!b || e.target.matches('input')) return; AU.on(); setTimeout(() => { if (!AU.ready()) return needSound(); const was = b.classList.contains('on'); $$('.bed', st).forEach(x => { x.classList.remove('on'); $('.pb', x).textContent = '▶'; }); if (was) AU.bedStop(); else { AU.bedPlay(byId(b.dataset.id), +$('input', b).value); b.classList.add('on'); $('.pb', b).textContent = '■'; } }, 0); });
+  $('.beds', st).addEventListener('input', e => { if (e.target.matches('input[type=range]') && AU.bed) AU.bed.g.gain.value = +e.target.value; });
+  onWin('keydown', e => { if (e.target.matches('input,select,textarea') || e.repeat || e.metaKey || e.ctrlKey) return; const i = PAD_CODES.indexOf(e.code), s = pads()[i]; if (s) { e.preventDefault(); hit(s.id); } });
+  if (navigator.keyboard && navigator.keyboard.getLayoutMap) navigator.keyboard.getLayoutMap().then(m => { labels = PAD_CODES.map((c, i) => (m.get(c) || labels[i]).toUpperCase()); paint(); }).catch(() => {});
+  let lastBed = null;
+  TICK = () => { const h = AU.bed, id = h ? h.id : null; if (lastBed && lastBed !== id) drawWave($(`.bed[data-id="${lastBed}"] canvas`, st), byId(lastBed)); if (h) drawWave($(`.bed[data-id="${id}"] canvas`, st), byId(id), AU.prog(h)); lastBed = id; };
+  paint(); paintSeq(); $$('.bed', st).forEach(b => drawWave($('canvas', b), byId(b.dataset.id)));
+}
+
+/* ───────── AUDIO C: Constellation ───────── */
+function audioMap(st) {
+  const AX = { bright: ['Grave', 'Brillance', 'Aigu'], dur: ['Court', 'Durée', 'Long'], lufs: ['Doux', 'Niveau', 'Fort'], bpm: ['Sans tempo', 'Tempo', 'Rapide'] };
+  const S = { x: 'bright', y: 'dur', off: new Set(), hover: true, pins: ['eclat-de-cristal', 'theme-des-eclats'], cur: null };
+  const D = SOUNDS.map(s => data(s)), span = (f) => { const v = D.map(f); return [Math.min(...v), Math.max(...v)]; };
+  const R = { dur: span(d => Math.log(d.dur)), lufs: span(d => d.lufs) };
+  const val = (s, a) => { const d = data(s); return a === 'bright' ? d.bright : a === 'dur' ? (Math.log(d.dur) - R.dur[0]) / (R.dur[1] - R.dur[0]) : a === 'lufs' ? (d.lufs - R.lufs[0]) / (R.lufs[1] - R.lufs[0]) : s.bpm ? 0.25 + 0.75 * (s.bpm - 60) / 80 : 0.04 + (s.i % 7) * 0.012; };
+  const pos = s => { const j = rng(s.i * 31 + 5), x = 6 + 88 * val(s, S.x) + (j() - 0.5) * 2.4, y = 92 - 84 * val(s, S.y) + (j() - 0.5) * 2.4; return [Math.max(4, Math.min(96, x)), Math.max(6, Math.min(92, y))]; };
+  const opt = cur => Object.keys(AX).map(a => `<option value="${a}" ${a === cur ? 'selected' : ''}>${AX[a][1]}</option>`).join('');
+  st.innerHTML = `<div class="tb"><h2>Audio</h2><div class="chips" data-chips></div><span class="sp"></span><label class="mini">Horizontal <select data-ax="x">${opt(S.x)}</select></label><label class="mini">Vertical <select data-ax="y">${opt(S.y)}</select></label><label class="sw"><input type="checkbox" checked data-hover> Écoute au survol</label></div>
+    <div class="mapwrap"><div class="map" data-map><svg></svg><div class="axis x"></div><div class="axis y"></div>${SOUNDS.map(s => `<button class="dot k-${s.k}" data-id="${s.id}" style="--s:${Math.round(11 + 15 * val(s, 'lufs'))}px" aria-label="${s.name}"></button>`).join('')}<div class="tip" data-tip><b></b><span></span><canvas></canvas></div></div>
+    <div class="tray"><h3>Sélection</h3><p>Survole la carte pour écouter, clique un point pour le garder ici. Les traits relient les trois sons les plus proches.</p><div data-picks style="display:flex;flex-direction:column;gap:8px"></div><span class="sp"></span><button class="btn" data-copy-picks>Copier les chemins</button><button class="btn" data-say="Collection créée depuis la sélection">Créer une collection</button></div></div>`;
+  const map = $('[data-map]', st), svg = $('svg', map), tip = $('[data-tip]', st), picks = $('[data-picks]', st), chips = $('[data-chips]', st);
+  let P = {};
+  function layout() { SOUNDS.forEach(s => { const [x, y] = pos(s); P[s.id] = [x, y]; const d = $(`.dot[data-id="${s.id}"]`, map); d.style.left = x + '%'; d.style.top = y + '%'; d.classList.toggle('off', S.off.has(s.k)); d.classList.toggle('pin', S.pins.includes(s.id)); }); $('.axis.x', map).innerHTML = AX[S.x].map(t => `<span>${t}</span>`).join(''); $('.axis.y', map).innerHTML = AX[S.y].map(t => `<span>${t}</span>`).join(''); svg.innerHTML = ''; }
+  function paintChips() { const c = countK(); chips.innerHTML = Object.keys(KINDS).map(k => `<button class="chip k-${k} ${S.off.has(k) ? '' : 'on'}" data-k="${k}"><i class="dotk"></i>${KINDS[k]} <b>${c[k]}</b></button>`).join(''); }
+  function paintPicks() { picks.innerHTML = S.pins.map(id => { const s = byId(id); return `<div class="pick k-${s.k}" data-id="${id}"><b>${s.name}</b><button class="x" title="Retirer">✕</button><canvas></canvas></div>`; }).join('') || '<p>Rien de gardé pour l’instant.</p>'; $$('.pick', picks).forEach(p => drawWave($('canvas', p), byId(p.dataset.id))); }
+  function near(id) { const [x, y] = P[id]; return SOUNDS.filter(s => s.id !== id && !S.off.has(s.k)).map(s => [Math.hypot(P[s.id][0] - x, (P[s.id][1] - y) * 0.6), s.id]).sort((a, b) => a[0] - b[0]).slice(0, 3).map(a => a[1]); }
+  function focus(id) { const s = byId(id), [x, y] = P[id]; S.cur = id; svg.innerHTML = near(id).map(n => `<line x1="${x}%" y1="${y}%" x2="${P[n][0]}%" y2="${P[n][1]}%"/>`).join(''); $('b', tip).textContent = s.name; $('span', tip).textContent = `${KINDS[s.k]} · ${fmtDur(data(s).dur)}${s.bpm ? ' · ' + s.bpm + ' BPM' : ''} · ${s.project}`; tip.style.left = (x > 68 ? `calc(${x}% - 226px)` : `calc(${x}% + 16px)`); tip.style.top = (y > 70 ? `calc(${y}% - 96px)` : `calc(${y}% + 12px)`); tip.classList.add('on'); drawWave($('canvas', tip), s); $$('.dot.on', map).forEach(d => d.classList.remove('on')); $(`.dot[data-id="${id}"]`, map).classList.add('on'); }
+  map.addEventListener('mouseover', e => { const d = e.target.closest('.dot'); if (!d) return; focus(d.dataset.id); if (S.hover) { if (!AU.ready()) return needSound(); AU.play(byId(d.dataset.id), { loop: false }); } });
+  map.addEventListener('mouseleave', () => { tip.classList.remove('on'); svg.innerHTML = ''; $$('.dot.on', map).forEach(d => d.classList.remove('on')); S.cur = null; AU.stop(); });
+  map.addEventListener('click', e => { const d = e.target.closest('.dot'); if (!d) return; const id = d.dataset.id; AU.on(); S.pins.includes(id) ? S.pins.splice(S.pins.indexOf(id), 1) : S.pins.unshift(id); d.classList.toggle('pin'); paintPicks(); focus(id); setTimeout(() => AU.play(byId(id), { loop: false }), 0); });
+  picks.addEventListener('click', e => { const p = e.target.closest('.pick'); if (!p) return; if (e.target.closest('.x')) { S.pins.splice(S.pins.indexOf(p.dataset.id), 1); layout(); paintPicks(); return; } AU.on(); setTimeout(() => { needSound(); AU.play(byId(p.dataset.id), { loop: false }); }, 0); });
+  chips.addEventListener('click', e => { const b = e.target.closest('[data-k]'); if (!b) return; S.off.has(b.dataset.k) ? S.off.delete(b.dataset.k) : S.off.add(b.dataset.k); paintChips(); layout(); });
+  st.addEventListener('change', e => { if (e.target.dataset.ax) { S[e.target.dataset.ax] = e.target.value; layout(); } if (e.target.matches('[data-hover]')) S.hover = e.target.checked; });
+  st.addEventListener('click', e => { if (e.target.closest('[data-copy-picks]')) copy(S.pins.map(id => byId(id).path).join('\n'), 'Chemins copiés'); });
+  let lastT = null;
+  TICK = () => { const h = AU.cur; if (h && S.cur === h.id) drawWave($('canvas', tip), byId(h.id), AU.prog(h)); const pk = h && $(`.pick[data-id="${h.id}"] canvas`, picks); if (lastT && lastT !== pk) drawWave(lastT, byId(lastT.parentNode.dataset.id)); if (pk) drawWave(pk, byId(h.id), AU.prog(h)); lastT = pk || null; };
+  paintChips(); layout(); paintPicks();
+}

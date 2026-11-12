@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="fr" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ZenRay Audio Gallery et ZenRay Fonts, six maquettes</title>
+<style>
+/*@@FONTFACES@@*/
+/*@@STYLE@@*/
+</style>
+</head>
+<body>
+<div class="top">
+  <div class="brand">ZenRay<span>maquettes du 12 November 2026</span></div>
+  <div class="seg" id="segApp"><button data-app="audio">Audio Gallery</button><button data-app="fonts">Fonts</button></div>
+  <div class="seg" id="segVar"></div>
+  <span class="sp"></span>
+  <button class="btn" id="themeBtn">Thème clair</button>
+</div>
+<div class="pitch"><h1 id="pTitle"></h1><p id="pLine"></p><div class="needs" id="pNeeds"></div></div>
+<div class="win"><div class="frame">
+  <aside class="side">
+    <div class="s-logo">ZenRay Progress</div>
+    <div class="s-zone">Plan</div><a>Plan</a><a>Freelance</a>
+    <div class="s-zone">Create</div><a>Create</a><a>Documents</a>
+    <div class="s-zone">Gallery</div><a>Design</a><a>Games</a><a data-nav="audio">Audio</a><a data-nav="fonts">Fonts</a><a>ZenRay Edit</a>
+    <div class="s-zone">Past</div><a>Past</a><a>Assets</a>
+  </aside>
+  <div class="stage" id="stage"></div>
+</div></div>
+<div class="choice"><div class="box">
+  <b style="font-weight:500">Mon choix</b>
+  <span class="mini">Audio</span><div class="seg" id="chAudio"></div>
+  <span class="mini">Fonts</span><div class="seg" id="chFonts"></div>
+  <input id="chNote" placeholder="Une remarque, un mélange à faire entre deux directions">
+  <button class="btn pri" id="chCopy">Copier mon choix</button>
+</div></div>
+<div class="foot">Les sons de ces maquettes sont synthétisés dans la page pour que tout soit jouable ; ce ne sont pas les fichiers de la bibliothèque. Les polices sont celles installées sur ce Mac, rendues par leur nom réel ; une famille absente d’un autre appareil s’y affiche comme absente.</div>
+<div class="toast" id="toast"></div>
+<script>
+/* 12 November 2026, 02:50 CET: every behaviour default lives here. FR : chaque réglage par défaut vit ici. */
+const PARAMS = {
+  sampleRate: 22050,        // Hz, synthèse de démonstration
+  waveBins: 120,            // finesse des formes d'onde
+  hoverListen: true,        // écoute au survol activée au départ
+  tile: 210,                // px, largeur d'une tuile du mur d'ondes
+  wallStride: 7,            // pas de mélange du mur (premier avec le nombre de sons), 1 = ordre par famille
+  padBank: 'Tout',          // banque de pads ouverte au départ
+  fontSample: 'Les éclats de 2027',
+  fontSize: 46,             // px, corps des spécimens
+  fontsChrome: 'Adobe Clean', // police de l'interface de ZenRay Fonts
+  benchTitle: 'GT Ultra', benchBody: 'Adobe Clean',
+  tableText: 'Hamburgefonstiv 0123', tableSize: 72, tableRef: 'Adobe Clean', pins: ['Adobe Clean', 'Inter Variable'],
+  start: { app: 'audio', variant: 'a' },
+};
+const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
+let TICK = null, THEME_HOOK = null, CLEAN = [];
+const onWin = (ev, fn) => { window.addEventListener(ev, fn); CLEAN.push(() => window.removeEventListener(ev, fn)); };
+const timer = (fn, ms) => { const t = setTimeout(fn, ms); CLEAN.push(() => clearTimeout(t)); };
+let toastT; function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 1900); }
+function copy(text, msg = 'Copié') { const done = () => toast(msg); if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(done, () => fallbackCopy(text, done)); else fallbackCopy(text, done); }
+function fallbackCopy(text, done) { const a = document.createElement('textarea'); a.value = text; document.body.appendChild(a); a.select(); try { document.execCommand('copy'); done(); } catch (e) { toast('Copie impossible : ' + text); } a.remove(); }
+document.addEventListener('click', e => { const c = e.target.closest('[data-copy]'); if (c) copy(c.dataset.copy); const s = e.target.closest('[data-say]'); if (s) toast(s.dataset.say + ' (maquette)'); });
+</script>
+<script>
+/*@@AUDIO@@*/
+</script>
+<script>
+/*@@FONTS@@*/
+</script>
+<script>
+const VARIANTS = {
+  audio: [
+    { id: 'a', name: 'Mur d’ondes', render: audioWall, line: 'La Gallery d’images transposée au son : la vignette de chaque son est sa propre forme d’onde, que l’on écoute en passant dessus et que l’on parcourt aux flèches. Les boucles prennent deux colonnes, la fiche du bas donne tout ce qu’il faut pour s’en servir.', needs: ['Écoute au survol', 'Clic dans l’onde pour partir de cet endroit', 'Flèches, Espace, F', 'SFX, UI, ambiances, BGM, voix', 'Chemin, BPM, tonalité, niveau', 'Vers Motion et Unreal'] },
+    { id: 'b', name: 'Pads', render: audioPads, line: 'Une table de jeu : chaque effet est un pad frappé au clavier, les sons se superposent, et une musique ou une ambiance tourne dessous pour juger l’effet en situation. La séquence jouée s’inscrit avec ses écarts de temps, se rejoue et part vers Motion.', needs: ['Clavier, 24 pads', 'Superposition libre', 'Effet jugé sur sa musique', 'Banques par projet', 'Séquence rejouable', 'Sceau circulaire propre à chaque son'] },
+    { id: 'c', name: 'Constellation', render: audioMap, line: 'Tous les sons sur une carte, rangés par ce qu’ils sont : du grave à l’aigu, du court au long, du doux au fort. On balaie la carte à la souris pour écouter, les voisins d’un son sont ses remplaçants possibles, et les axes se changent d’un geste.', needs: ['Trouver un son sans connaître son nom', 'Sons proches reliés', 'Axes au choix', 'Familles masquables', 'Sélection gardée à droite', 'Copie des chemins'] },
+  ],
+  fonts: [
+    { id: 'a', name: 'Mur de spécimens', render: fontWall, line: 'Chaque famille installée, composée dans sa propre police avec ta phrase. Les graisses se dévoilent au survol, la fiche de droite donne glyphes, graisses, lecture et le jeton prêt à coller.', needs: ['Ta phrase partout', 'Graisses au survol', 'Rôles du système ZenRay', 'Glyphes et lecture', 'Jeton CSS', 'Famille absente signalée'] },
+    { id: 'b', name: 'Banc d’essai jeu', render: fontBench, line: 'On ne juge pas une police sur un alphabet mais sur un écran de jeu. Deux emplacements, Titre et Texte, et cinq situations : écran titre, HUD, dialogue, menu, article. Les flèches font défiler les familles et l’écran change sous les yeux.', needs: ['Paire titre et texte', 'Écran titre, HUD, dialogue, menu, article', 'Chiffres de dégâts et compteurs', 'Japonais dans le dialogue', 'Flèches pour défiler', 'Deux jetons copiés'] },
+    { id: 'c', name: 'Table de mesure', render: fontTable, line: 'L’établi du technicien : le même mot, au même corps, sur la même ligne de base pour toutes les familles. La hauteur d’x et la largeur sont mesurées et comparées à Adobe Clean, et trois familles épinglées se superposent pour voir où elles divergent.', needs: ['Hauteur d’x mesurée', 'Largeur à corps égal', 'Écart face à la référence', 'Superposition de 3 familles', 'Tri par mesure', 'Remplacer une police sans casser la mise en page'] },
+  ],
+};
+const CUR = { app: PARAMS.start.app, variant: PARAMS.start.variant }, CHOICE = { audio: '', fonts: '' };
+function show(app, variant) {
+  CUR.app = app; CUR.variant = variant; CLEAN.forEach(f => f()); CLEAN = []; TICK = null; THEME_HOOK = null; AU.all();
+  const v = VARIANTS[app].find(x => x.id === variant), st = $('#stage'); st.removeAttribute('style'); st.innerHTML = '';
+  $$('#segApp button').forEach(b => b.classList.toggle('on', b.dataset.app === app));
+  $('#segVar').innerHTML = VARIANTS[app].map(x => `<button data-v="${x.id}" class="${x.id === variant ? 'on' : ''}"><i>${x.id.toUpperCase()}</i>${x.name}</button>`).join('');
+  $$('.side a[data-nav]').forEach(a => a.classList.toggle('on', a.dataset.nav === app));
+  $('#pTitle').textContent = `${app === 'audio' ? 'Audio' : 'Fonts'} ${variant.toUpperCase()} · ${v.name}`; $('#pLine').textContent = v.line; $('#pNeeds').innerHTML = v.needs.map(n => `<span>${n}</span>`).join('');
+  history.replaceState(null, '', `#${app}-${variant}`); v.render(st);
+}
+function paintChoice() { ['audio', 'fonts'].forEach(app => { $(app === 'audio' ? '#chAudio' : '#chFonts').innerHTML = VARIANTS[app].map(x => `<button data-app="${app}" data-v="${x.id}" class="${CHOICE[app] === x.id ? 'on' : ''}"><i>${x.id.toUpperCase()}</i>${x.name}</button>`).join(''); }); }
+$('#segApp').addEventListener('click', e => { const b = e.target.closest('[data-app]'); if (b) show(b.dataset.app, 'a'); });
+$('#segVar').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (b) show(CUR.app, b.dataset.v); });
+$('.side').addEventListener('click', e => { const a = e.target.closest('[data-nav]'); if (a) show(a.dataset.nav, 'a'); });
+$('.choice').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (b) { CHOICE[b.dataset.app] = CHOICE[b.dataset.app] === b.dataset.v ? '' : b.dataset.v; paintChoice(); } });
+$('#chCopy').addEventListener('click', () => { const nm = app => { const v = VARIANTS[app].find(x => x.id === CHOICE[app]); return v ? `${v.id.toUpperCase()} (${v.name})` : 'pas encore choisi'; }; copy(`Choix maquettes 12 November 2026 | Audio: ${nm('audio')} | Fonts: ${nm('fonts')} | Police de l'app Fonts: ${PARAMS.fontsChrome} | Remarque: ${$('#chNote').value || 'aucune'}`, 'Choix copié, colle-le dans la conversation'); });
+$('#themeBtn').addEventListener('click', () => { const r = document.documentElement, light = r.dataset.theme !== 'light'; r.dataset.theme = light ? 'light' : 'dark'; $('#themeBtn').textContent = light ? 'Thème sombre' : 'Thème clair'; show(CUR.app, CUR.variant); });
+(function loop() { if (TICK) TICK(); requestAnimationFrame(loop); })();
+function fromHash() { const h = (location.hash.slice(1) || '').split('-'), ok = VARIANTS[h[0]] && VARIANTS[h[0]].some(x => x.id === h[1]); if (ok && (h[0] !== CUR.app || h[1] !== CUR.variant || !$('#stage').firstChild)) show(h[0], h[1]); else if (!$('#stage').firstChild) show(CUR.app, CUR.variant); }
+paintChoice(); window.addEventListener('hashchange', fromHash); document.fonts.ready.then(fromHash);
+</script>
+</body>
+</html>

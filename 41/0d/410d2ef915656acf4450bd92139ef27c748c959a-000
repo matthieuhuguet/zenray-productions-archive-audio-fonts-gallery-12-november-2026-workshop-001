@@ -1,0 +1,152 @@
+/* 12 November 2026, 02:40 CET: ZenRay Fonts mockups. The families are the ones installed on this Mac, rendered live by their real name. */
+/* FR : maquettes ZenRay Fonts. Les familles sont celles installées sur ce Mac, rendues en direct par leur vrai nom. */
+const CLASSES = { sans: 'Sans', serif: 'Serif', display: 'Display', mono: 'Mono', jp: 'Japonais' };
+const W_NAMES = { 100: 'Thin', 200: 'ExtraLight', 300: 'Light', 400: 'Regular', 500: 'Medium', 600: 'SemiBold', 700: 'Bold', 800: 'ExtraBold', 900: 'Black' };
+const F = (fam, cls, styles, w, o = {}) => ({ fam, label: o.label || fam, cls, styles, w, css: o.css || `'${fam}'`, role: o.role || '', by: o.by || 'Grilli Type' });
+const FONTS = [
+  F('Adobe Clean', 'sans', 21, [300, 400, 500, 700, 800, 900], { role: 'Défaut ZenRay', by: 'Adobe' }),
+  F('Inter Variable', 'sans', 2, [300, 400, 500, 600, 700, 900], { by: 'Rasmus Andersson' }),
+  F('Inter Tight', 'sans', 2, [300, 400, 500, 700, 900], { by: 'Rasmus Andersson' }),
+  F('SF Pro Display', 'sans', 18, [100, 300, 400, 500, 700, 900], { by: 'Apple' }),
+  F('SF Pro Rounded', 'sans', 9, [300, 400, 500, 700, 900], { by: 'Apple' }),
+  F('AnthropicSans', 'sans', 14, [300, 400, 500, 600, 800, 900], { by: 'Anthropic' }),
+  F('GT Ultra', 'sans', 2, [400, 700], { css: "'GT Ultra','GT Ultra Regular'", role: 'Ancien titrage' }),
+  F('GT Standard', 'sans', 2, [400, 700], { css: "'GT Standard','GT Standard L'" }),
+  F('GT America LCGV', 'sans', 2, [400]), F('GT Walsheim LC', 'sans', 2, [400]), F('GT Haptik', 'sans', 2, [400]), F('GT Flexa', 'sans', 2, [400]),
+  F('GT Eesti Display LC', 'sans', 2, [400]), F('GT Planar', 'sans', 2, [400]), F('GT Pressura LCGV', 'sans', 2, [400]), F('GT Cinetype', 'sans', 2, [400]),
+  F('GT Zirkon', 'sans', 2, [400]), F('GT Maru', 'sans', 2, [400]), F('GT Era Display', 'sans', 2, [400]), F('GT Mechanik Poly', 'sans', 2, [400]),
+  F('Literata', 'serif', 2, [300, 400, 500, 700, 900], { role: 'Serif ZenRay', by: 'TypeTogether' }),
+  F('AnthropicSerif', 'serif', 14, [300, 400, 500, 600, 800, 900], { by: 'Anthropic' }),
+  F('GT Sectra LCG', 'serif', 10, [400, 500, 700, 900], { role: 'Ancien titrage' }),
+  F('GT Sectra Display LCG', 'serif', 10, [300, 400, 500, 900]), F('GT Sectra Fine LCG', 'serif', 10, [300, 400, 500, 700]),
+  F('GT Alpina', 'serif', 2, [400]), F('GT Super Display', 'serif', 2, [400]), F('GT Pantheon Display', 'serif', 2, [400]), F('GT Flaire Basic', 'serif', 2, [400]), F('GT Canon', 'serif', 2, [400]),
+  F('Canela LCG Web', 'serif', 8, [100, 400, 500, 700, 900], { label: 'Canela', by: 'Commercial Type' }),
+  F('Newsreader', 'serif', 72, [200, 400, 500, 700, 800], { by: 'Production Type' }),
+  F('Source Serif 4', 'serif', 66, [200, 400, 600, 700, 900], { by: 'Adobe' }),
+  F('EB Garamond', 'serif', 2, [400, 500, 700, 800], { by: 'Georg Duffner' }),
+  F('Archive Garamond Pro', 'serif', 4, [400, 700], { by: 'Archive Type' }),
+  F('Charter', 'serif', 4, [400, 700], { by: 'Matthew Carter' }),
+  F('Playfair Display', 'serif', 2, [400, 500, 700, 900], { by: 'Claus Eggers Sørensen' }),
+  F('PP Editorial New', 'serif', 1, [400], { by: 'Pangram Pangram' }),
+  F('Vogun', 'display', 5, [300, 400, 500, 700], { role: 'Accent ZenRay', by: 'Yukita Creative' }),
+  F('Beaufort for LOL', 'display', 7, [400, 500, 700, 900], { label: 'Beaufort', by: 'Riot Games' }),
+  F('Abril Fatface', 'display', 1, [400], { by: 'TypeTogether' }), F('Abril Display', 'display', 1, [600], { by: 'TypeTogether' }),
+  F('Didonesque Stencil', 'display', 1, [700], { by: 'Paulo Goode' }), F('Apotek Comp', 'display', 1, [900], { by: 'Dieter Hofrichter' }),
+  F('Alize-Bold', 'display', 1, [700], { label: 'Alize', by: 'Tom Grace' }),
+  F('Golden Hopes PERSONAL USE ONLY', 'display', 1, [400], { label: 'Golden Hopes', by: 'Billy Argel' }),
+  F('AnthropicMono', 'mono', 7, [300, 400, 500, 600, 800, 900], { role: 'Code ZenRay', by: 'Anthropic' }),
+  F('Menlo', 'mono', 4, [400, 700], { by: 'Apple' }),
+  F('FOT-Chiaro Std', 'jp', 7, [300, 400, 500, 600, 700, 800, 900], { css: "'FOT-Chiaro Std','FOT-Chiaro Std B'", label: 'FOT-Chiaro', role: 'Dialogue de jeu', by: 'Fontworks' }),
+  F('Hiragino Sans', 'jp', 10, [300, 400, 600, 700, 900], { role: 'Repli japonais', by: 'Screen' }),
+  F('Hiragino Mincho ProN', 'jp', 2, [300, 600], { by: 'Screen' }),
+  F('YuMincho', 'jp', 3, [400, 600, 800], { label: 'Yu Mincho', by: 'Jiyukobo' }),
+];
+const fontBy = fam => FONTS.find(f => f.fam === fam);
+const mcv = document.createElement('canvas').getContext('2d');
+const mw = font => { mcv.font = font; return mcv.measureText('mmmmmmmmlli10Wgあ').width; };
+/* A missing family falls back, so its width equals the fallback width against two different fallbacks. */
+function installed(f) { if (f._i === undefined) f._i = mw(`72px ${f.css}, monospace`) !== mw('72px monospace') || mw(`72px ${f.css}, serif`) !== mw('72px serif'); return f._i; }
+function metrics(f) { if (f._m) return f._m; mcv.font = `400 200px ${f.css}`; const a = t => mcv.measureText(t).actualBoundingBoxAscent / 200; return f._m = { x: a('x'), cap: a('H'), asc: a('d') }; }
+const textW = (f, t, size) => { mcv.font = `400 ${size}px ${f.css}`; return mcv.measureText(t).width; };
+const clsChips = cur => `<button class="chip ${cur === 'all' ? 'on' : ''}" data-c="all">Tout <b>${FONTS.length}</b></button>` + Object.keys(CLASSES).map(c => `<button class="chip ${cur === c ? 'on' : ''}" data-c="${c}">${CLASSES[c]} <b>${FONTS.filter(f => f.cls === c).length}</b></button>`).join('') + `<button class="chip ${cur === 'zr' ? 'on' : ''}" data-c="zr">Système ZenRay <b>${FONTS.filter(f => f.role).length}</b></button>`;
+const inClass = (f, c) => c === 'all' || (c === 'zr' ? !!f.role : f.cls === c);
+const CHROMES = { 'Adobe Clean': "'ZR UI','Adobe Clean',sans-serif", 'GT Flexa': "'GT Flexa','ZR UI',sans-serif", 'GT Cinetype': "'GT Cinetype','ZR UI',sans-serif", 'GT Maru': "'GT Maru','ZR UI',sans-serif" };
+const chromeSel = () => `<label class="mini">Police de l’app <select data-chrome>${Object.keys(CHROMES).map(c => `<option ${c === PARAMS.fontsChrome ? 'selected' : ''}>${c}</option>`).join('')}</select></label>`;
+function bindChrome(st) { const set = v => { PARAMS.fontsChrome = v; st.style.setProperty('--font-ui', CHROMES[v]); st.style.fontFamily = CHROMES[v]; }; set(PARAMS.fontsChrome); st.addEventListener('change', e => { if (e.target.matches('[data-chrome]')) set(e.target.value); }); }
+const token = f => f.css + (f.cls === 'jp' ? ",'Hiragino Sans W4',sans-serif" : f.cls === 'serif' ? ",'Hiragino Mincho ProN W3',serif" : f.cls === 'mono' ? ',ui-monospace,monospace' : ",'Hiragino Sans W4',sans-serif");
+const sampleFor = (f, t) => f.cls === 'jp' ? 'ゼンレイ 光の欠片' : t;
+
+/* ───────── FONTS A: Mur de spécimens ───────── */
+function fontWall(st) {
+  const S = { c: 'all', q: '', text: PARAMS.fontSample, size: PARAMS.fontSize, sel: 'Adobe Clean', w: {} };
+  st.innerHTML = `<div class="tb"><h2>Fonts</h2><span class="count" data-count></span><input class="search" data-text value="${S.text}" title="Ta phrase, rendue dans chaque police"><div class="chips" data-chips></div><span class="sp"></span><label class="mini">Corps <input type="range" min="26" max="96" value="${S.size}" data-size></label>${chromeSel()}</div>
+    <div class="fwrap"><div class="fgrid" data-grid style="--fs:${S.size}px"></div><div class="insp" data-insp></div></div>`;
+  bindChrome(st);
+  const grid = $('[data-grid]', st), insp = $('[data-insp]', st), chips = $('[data-chips]', st);
+  const list = () => FONTS.filter(f => inClass(f, S.c));
+  function paint() {
+    const L = list(); chips.innerHTML = clsChips(S.c); $('[data-count]', st).textContent = `${L.length} familles · ${L.reduce((a, f) => a + f.styles, 0)} styles`;
+    grid.innerHTML = L.map(f => { const ok = installed(f), w = S.w[f.fam] || (f.w.includes(400) ? 400 : f.w[0]); return `<div class="fcard ${f.cls === 'display' ? 'wide' : ''} ${f.fam === S.sel ? 'sel' : ''} ${ok ? '' : 'miss'}" data-f="${f.fam}" tabindex="0"><div class="spec" style="font-family:${f.css};font-weight:${w}">${sampleFor(f, S.text)}</div><div class="ladder">${f.w.map(x => `<span class="${x === w ? 'on' : ''}" data-w="${x}" style="font-family:${f.css};font-weight:${x}" title="${W_NAMES[x]} ${x}">Aa</span>`).join('')}</div><div class="fmeta"><b>${f.label}</b>${ok ? (f.role ? `<span class="role">${f.role}</span>` : '') : '<span class="role warn">Absente de cet appareil</span>'}<span class="sp"></span><span>${f.styles} style${f.styles > 1 ? 's' : ''}</span></div></div>`; }).join('');
+  }
+  function paintInsp() {
+    const f = fontBy(S.sel), w = S.w[f.fam] || (f.w.includes(400) ? 400 : f.w[0]), m = metrics(f), fam = `font-family:${f.css}`;
+    const gl = (f.cls === 'jp' ? 'あいうえおカキクケコ光欠片日本語' : 'AaBbCcGgQqRrSs') + '0123456789&?!@€éèçà';
+    insp.innerHTML = `<p class="big" style="${fam};font-weight:${w}">${f.label}</p><div class="sub">${CLASSES[f.cls]} · ${f.by} · ${f.styles} style${f.styles > 1 ? 's' : ''}${f.role ? ' · ' + f.role : ''}</div>
+      <div class="facts"><span class="fact">Hauteur d’x <b>${fr(m.x * 100, 1)} %</b></span><span class="fact">Capitales <b>${fr(m.cap * 100, 1)} %</b></span><span class="fact">${installed(f) ? 'Installée' : 'Absente'}</span></div>
+      <h4>Glyphes</h4><div class="glyphs" style="${fam};font-weight:${w}">${[...gl].map(g => `<span>${g}</span>`).join('')}</div>
+      <h4>Graisses</h4>${f.w.map(x => `<div class="wrow"><span style="${fam};font-weight:${x}">${sampleFor(f, S.text)}</span><span>${W_NAMES[x]} ${x}</span></div>`).join('')}
+      <h4>En lecture</h4><p class="para" style="${fam};font-weight:${w}">${f.cls === 'jp' ? '光の欠片を集めて、壊れた世界をもう一度つなぐ。Les éclats se rassemblent, 2027.' : 'Le toit de l’église compte 36 variantes de tuiles, posées par un seul graphe. Chaque valeur se change en un point, puis tout le bayou suit.'}</p>
+      <h4>Jeton</h4><div class="code">--font-title: ${token(f)};</div>
+      <div class="iacts"><button class="btn pri" data-copy="--font-title: ${token(f)};">Copier le jeton</button><button class="btn" data-say="${f.label} envoyée au banc d’essai, emplacement Titre">Essayer en jeu</button><button class="btn" data-say="${f.label} épinglée dans la table de mesure">Mesurer</button><button class="btn" data-say="woff2 généré dans public/fonts">Exporter en woff2</button></div>`;
+  }
+  grid.addEventListener('click', e => { const c = e.target.closest('.fcard'); if (!c) return; const w = e.target.closest('[data-w]'); if (w) { S.w[c.dataset.f] = +w.dataset.w; $('.spec', c).style.fontWeight = w.dataset.w; $$('.ladder span', c).forEach(x => x.classList.toggle('on', x === w)); } $$('.fcard.sel', grid).forEach(x => x.classList.remove('sel')); c.classList.add('sel'); S.sel = c.dataset.f; paintInsp(); });
+  chips.addEventListener('click', e => { const b = e.target.closest('[data-c]'); if (b) { S.c = b.dataset.c; paint(); } });
+  $('[data-text]', st).addEventListener('input', e => { S.text = e.target.value || PARAMS.fontSample; $$('.fcard', grid).forEach(c => { const f = fontBy(c.dataset.f); if (f.cls !== 'jp') $('.spec', c).textContent = S.text; }); paintInsp(); });
+  $('[data-size]', st).addEventListener('input', e => grid.style.setProperty('--fs', e.target.value + 'px'));
+  onWin('keydown', e => { if (e.target.matches('input,select')) return; const L = list(), i = L.findIndex(f => f.fam === S.sel), cols = Math.max(1, Math.round(grid.clientWidth / 264)), mv = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: cols, ArrowUp: -cols }[e.key]; if (!mv) return; e.preventDefault(); const n = L[Math.max(0, Math.min(L.length - 1, i + mv))]; const c = n && $(`.fcard[data-f="${n.fam}"]`, grid); if (c) { c.click(); c.scrollIntoView({ block: 'nearest' }); } });
+  paint(); paintInsp();
+}
+
+/* ───────── FONTS B: Banc d'essai jeu ───────── */
+function fontBench(st) {
+  const S = { slot: 't', t: PARAMS.benchTitle, b: PARAMS.benchBody, scene: 'title', q: '' };
+  const SCENES = { title: 'Écran titre', hud: 'HUD', dlg: 'Dialogue', menu: 'Menu', art: 'Article' };
+  const H = {
+    title: `<div class="s-title"><i class="shard"></i><h3 class="ft">ZenRayShards</h3><p class="fb">Un monde brisé, un seul éclat pour le recoudre</p><p class="press fb">Appuie sur une touche</p><div class="ver fb">Version 0.3.1 · 12 November 2026 · ZenRay</div></div>`,
+    hud: `<div class="hud"><i class="shard"></i><div class="tlc"><span class="nm ft">Aya</span><span class="lv fb">Niveau 27</span><div class="bar"><i style="width:53%;background:#ff5d5d"></i></div><div class="nums fb"><span>Vie</span><span>1 280 / 2 400</span></div><div class="bar"><i style="width:78%;background:#5db4ff"></i></div><div class="nums fb"><span>Éther</span><span>312 / 400</span></div></div>
+      <div class="quest"><small class="fb">Quête en cours</small><b class="ft">Le clocher du bayou</b><span class="fb">Rejoindre l’église avant la nuit · 320 m</span></div>
+      <div class="dmg ft" style="left:38%;top:34%">347</div><div class="dmg crit ft" style="left:54%;top:44%;animation-delay:.8s"><small class="fb">CRITIQUE</small>1 204</div>
+      <div class="toastg fb">Objet obtenu : Clé rouillée</div><div class="blc"><b class="ft">4 / 9</b><span class="fb">éclats</span></div>
+      <div class="inv fb"><div class="slotg">◆<em>12</em></div><div class="slotg">✚<em>3</em></div><div class="slotg">✦<em>27</em></div></div></div>`,
+    dlg: `<div class="dlg"><i class="shard"></i><div class="box"><span class="who ft">La gardienne</span><p class="fb">Tu as trouvé le quatrième éclat. Il en reste cinq, et la nuit tombe à 19:40 sur le bayou.</p><p class="fb jp">欠片はあと五つ。夜になる前に教会へ。</p><div class="ch fb"><span>Je pars maintenant</span><span>Pas encore</span></div></div></div>`,
+    menu: `<div class="menu"><div class="tabs ft"><span>Jeu</span><span>Vidéo</span><span class="on">Audio</span><span>Commandes</span></div><div class="rows fb">${[['Volume de la musique', '80'], ['Volume des effets', '65'], ['Volume des voix', '100'], ['Sous-titres', 'Activés'], ['Taille des sous-titres', '100 %'], ['Langue des voix', '日本語'], ['Sortie', 'Casque, stéréo']].map(r => `<div class="rw"><span>${r[0]}</span><span>${r[1]}</span></div>`).join('')}</div></div>`,
+    art: `<div class="art"><article><div class="dt fb">Devlog 12 · 12 November 2026</div><h3 class="ft">Un toit procédural en 36 variantes</h3><p class="fb">Le toit de l’église se construit depuis une seule définition. Les tuiles se posent rangée par rangée, chacune tirée parmi 36 variantes, et la moindre retouche de largeur se propage sans rien redessiner.</p><p class="fb">Le graphe tient en moins de 150 nœuds et se recalcule en 2 secondes, ce qui laisse le temps de juger la forme plutôt que d’attendre le rendu.</p></article></div>`,
+  };
+  st.innerHTML = `<div class="tb"><h2>Fonts</h2><div class="seg" data-scenes>${Object.keys(SCENES).map(k => `<button data-s="${k}" class="${k === S.scene ? 'on' : ''}">${SCENES[k]}</button>`).join('')}</div><span class="sp"></span><span class="hint"><span class="kbd">↑</span><span class="kbd">↓</span> police suivante <span class="kbd">←</span><span class="kbd">→</span> Titre ou Texte</span>${chromeSel()}</div>
+    <div class="bench"><div class="bleft"><div class="slots"><button class="slot" data-slot="t"><small>Titre</small><b></b></button><button class="slot" data-slot="b"><small>Texte</small><b></b></button></div><div style="padding:0 12px 8px"><input class="search" style="max-width:none;width:100%" placeholder="Filtrer les familles"></div><div class="flist" data-list></div></div>
+    <div class="bright"><div class="scene" data-scene></div><div class="readout"><div class="code" data-code></div><button class="btn" data-swap>Intervertir</button><button class="btn pri" data-copyt>Copier les jetons</button></div></div></div>`;
+  bindChrome(st);
+  const listEl = $('[data-list]', st), scene = $('[data-scene]', st);
+  const list = () => FONTS.filter(f => installed(f) && f.label.toLowerCase().includes(S.q.toLowerCase()));
+  const tokens = () => `--font-title: ${token(fontBy(S.t))};\n--font-body: ${token(fontBy(S.b))};`;
+  function apply() { const t = fontBy(S.t), b = fontBy(S.b); scene.style.setProperty('--ft', token(t)); scene.style.setProperty('--fb', token(b)); $$('.slot', st).forEach(x => { const f = fontBy(S[x.dataset.slot]); x.classList.toggle('on', x.dataset.slot === S.slot); $('b', x).textContent = f.label; $('b', x).style.fontFamily = f.css; }); $('[data-code]', st).textContent = tokens().replace('\n', '   '); $$('.frow', listEl).forEach(r => { r.classList.toggle('t', r.dataset.f === S.t); r.classList.toggle('b', r.dataset.f === S.b); }); }
+  function paintList() { listEl.innerHTML = list().map(f => `<button class="frow" data-f="${f.fam}"><span style="font-family:${f.css}">${f.label}</span><span>${CLASSES[f.cls]}</span></button>`).join(''); apply(); }
+  function setScene(k) { S.scene = k; scene.innerHTML = H[k]; $$('[data-s]', st).forEach(b => b.classList.toggle('on', b.dataset.s === k)); }
+  listEl.addEventListener('click', e => { const r = e.target.closest('.frow'); if (r) { S[S.slot] = r.dataset.f; apply(); } });
+  st.addEventListener('click', e => { const s = e.target.closest('[data-slot]'); if (s) { S.slot = s.dataset.slot; apply(); } const sc = e.target.closest('[data-s]'); if (sc) setScene(sc.dataset.s); if (e.target.closest('[data-swap]')) { [S.t, S.b] = [S.b, S.t]; apply(); } if (e.target.closest('[data-copyt]')) copy(tokens(), 'Jetons copiés'); });
+  $('.bleft .search', st).addEventListener('input', e => { S.q = e.target.value; paintList(); });
+  onWin('keydown', e => { if (e.target.matches('input,select')) return; if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); S.slot = S.slot === 't' ? 'b' : 't'; return apply(); } const mv = { ArrowDown: 1, ArrowUp: -1 }[e.key]; if (!mv) return; e.preventDefault(); const L = list(), i = L.findIndex(f => f.fam === S[S.slot]), n = L[(i + mv + L.length) % L.length]; S[S.slot] = n.fam; apply(); const r = $(`.frow[data-f="${n.fam}"]`, listEl); if (r) r.scrollIntoView({ block: 'nearest' }); });
+  setScene(S.scene); paintList();
+}
+
+/* ───────── FONTS C: Table de mesure ───────── */
+function fontTable(st) {
+  const PC = ['#0a84ff', '#ff375f', '#30d158'], S = { c: 'all', text: PARAMS.tableText, size: PARAMS.tableSize, sort: 'x', pins: PARAMS.pins.slice() };
+  st.innerHTML = `<div class="tb"><h2>Fonts</h2><input class="search" data-text value="${S.text}" title="Le même mot pour toutes les familles"><div class="chips" data-chips></div><span class="sp"></span><label class="mini">Corps <input type="range" min="40" max="120" value="${S.size}" data-size></label><label class="mini">Trier <select data-sort><option value="x">Hauteur d’x</option><option value="w">Largeur</option><option value="n">Nom</option></select></label>${chromeSel()}</div>
+    <div class="over" data-over></div><div class="mtable" data-rows></div>`;
+  bindChrome(st);
+  const rows = $('[data-rows]', st), over = $('[data-over]', st), ref = fontBy(PARAMS.tableRef);
+  const esc = t => t.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  function paintOver() {
+    const big = S.size * 1.12, H = Math.round(big * 1.42), base = Math.round(big * 1.08), mr = metrics(ref);
+    over.innerHTML = `<div class="lg"><b style="color:var(--text);font-weight:500">Superposition</b>${S.pins.map((p, i) => `<span><i style="background:${PC[i]}"></i>${fontBy(p).label}</span>`).join('')}<span class="sp"></span><span>Même corps, même ligne de base. Épingle jusqu’à 3 familles pour voir où elles divergent.</span></div>
+      <svg height="${H}"><line class="gl" x1="0" x2="100%" y1="${base}" y2="${base}"/><line class="gl ref" x1="0" x2="100%" y1="${base - mr.x * big}" y2="${base - mr.x * big}"/>${S.pins.map((p, i) => `<text x="0" y="${base}" font-size="${big}" style="font-family:${fontBy(p).css};mix-blend-mode:${document.documentElement.dataset.theme === 'light' ? 'multiply' : 'screen'}" fill="${PC[i]}" fill-opacity=".8">${esc(S.text)}</text>`).join('')}</svg>`;
+  }
+  function paint() {
+    const mr = metrics(ref), wr = textW(ref, S.text, S.size);
+    let L = FONTS.filter(f => inClass(f, S.c) && f.cls !== 'jp').map(f => ({ f, ok: installed(f), m: metrics(f), w: textW(f, S.text, S.size) }));
+    L.sort((a, b) => (b.ok - a.ok) || (S.sort === 'x' ? b.m.x - a.m.x : S.sort === 'w' ? a.w - b.w : a.f.label.localeCompare(b.f.label)));
+    $('[data-chips]', st).innerHTML = clsChips(S.c);
+    const H = Math.round(S.size * 1.5), base = Math.round(S.size * 1.12);
+    rows.innerHTML = L.map(({ f, ok, m, w }) => { const dx = (m.x / mr.x - 1) * 100, dw = (w / wr - 1) * 100, pi = S.pins.indexOf(f.fam), sg = v => (v >= 0 ? '+' : '−') + fr(Math.abs(v), 1) + ' %';
+      return `<div class="mrow ${ok ? '' : 'miss'}"><div class="minfo"><b>${f.label}</b><div class="mm"><span>Hauteur d’x</span><span>${fr(m.x * 100, 1)} %</span><span>Capitales</span><span>${fr(m.cap * 100, 1)} %</span><span>Largeur</span><span>${Math.round(w)} px</span></div>${f === ref ? '<span class="delta">Référence</span>' : `<span class="delta ${dx >= 0 ? 'up' : 'dn'}">x ${sg(dx)} · largeur ${sg(dw)} face à ${ref.label}</span>`}<button class="pinb ${pi >= 0 ? 'on' : ''}" style="--pc:${PC[pi] || ''}" data-pin="${f.fam}">${pi >= 0 ? 'Épinglée' : 'Épingler'}</button></div>
+        <div class="cell"><svg height="${H}"><line class="gl" x1="0" x2="100%" y1="${base}" y2="${base}"/><line class="gl ref" x1="0" x2="100%" y1="${base - mr.x * S.size}" y2="${base - mr.x * S.size}"/><line class="gl own" x1="0" x2="${Math.round(w)}" y1="${base - m.x * S.size}" y2="${base - m.x * S.size}"/><text x="0" y="${base}" font-size="${S.size}" fill="currentColor" style="font-family:${f.css}">${esc(S.text)}</text></svg></div></div>`; }).join('');
+    paintOver();
+  }
+  rows.addEventListener('click', e => { const b = e.target.closest('[data-pin]'); if (!b) return; const i = S.pins.indexOf(b.dataset.pin); if (i >= 0) S.pins.splice(i, 1); else { if (S.pins.length >= 3) S.pins.shift(); S.pins.push(b.dataset.pin); } paint(); });
+  st.addEventListener('click', e => { const b = e.target.closest('[data-c]'); if (b) { S.c = b.dataset.c; paint(); } });
+  st.addEventListener('input', e => { if (e.target.matches('[data-text]')) { S.text = e.target.value || PARAMS.tableText; paint(); } if (e.target.matches('[data-size]')) { S.size = +e.target.value; paint(); } });
+  st.addEventListener('change', e => { if (e.target.matches('[data-sort]')) { S.sort = e.target.value; paint(); } });
+  THEME_HOOK = paintOver;
+  paint();
+}
